@@ -19,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,7 +38,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val source = ModuleSource(getSystemService(ConnectivityManager::class.java))
+        val source = ModuleSource(requireNotNull(getSystemService(ConnectivityManager::class.java)))
         setContent {
             MaterialTheme(colorScheme = lightColorScheme()) { Monitor(source) }
         }
@@ -111,7 +113,7 @@ private fun Monitor(source: ModuleSource) {
                 Switch(
                     checked = demo,
                     onCheckedChange = { demo = it },
-                    thumbContent = { Text(if (demo) "D" else "L", fontSize = 10.sp) },
+                    modifier = Modifier.semantics { contentDescription = "Demo mode" },
                 )
             }
             ReadingCard("TEMPERATURE", if (demo) 25.37 else current?.temperature, "°C",
