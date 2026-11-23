@@ -2,6 +2,7 @@ package com.bedo.smartfactory
 
 import android.net.ConnectivityManager
 import android.os.Bundle
+import android.content.SharedPreferences
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -39,8 +40,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val source = ModuleSource(requireNotNull(getSystemService(ConnectivityManager::class.java)))
+        val preferences = getSharedPreferences("module_settings", MODE_PRIVATE)
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme()) { Monitor(source) }
+            MaterialTheme(colorScheme = lightColorScheme()) { Monitor(source, preferences) }
         }
     }
 }
@@ -50,23 +52,64 @@ private val Ink = Color(0xFF242424)
 private val Muted = Color(0xFF595959)
 
 @Composable
-private fun Monitor(source: ModuleSource) {
+private fun Monitor(source: ModuleSource, preferences: SharedPreferences) {
+    var host by rememberSaveable {
+        mutableStateOf(preferences.getString("module_ip", "192.168.250.50") ?: "192.168.250.50")
+    }
+    var editingAddress by rememberSaveable { mutableStateOf(false) }
+    var draft by rememberSaveable { mutableStateOf(host) }
+    val validAddress = draft.trim().split(".").let { parts ->
+        parts.size == 4 && parts.all { part ->
+            part.isNotEmpty() && part.length <= 3 &&
+                part.all { it in '0'..'9' } &&
+                (part.toIntOrNull()?.let { it in 0..255 } == true)
+        }
+    }
+    if (editingAddress) {
+        AlertDialog(
+            onDismissRequest = { editingAddress = false },
+            title = { Text("Module IP address") },
+            text = {
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    label = { Text("IPv4 address") },
+                    singleLine = true,
+                    isError = !validAddress,
+                    supportingText = { Text("Example: 192.168.250.50") },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = validAddress,
+                    onClick = {
+                        host = draft.trim()
+                        preferences.edit().putString("module_ip", host).apply()
+                        editingAddress = false
+                    },
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingAddress = false }) { Text("Cancel") }
+            },
+        )
+    }
     var demo by rememberSaveable { mutableStateOf(true) }
-    var reading by remember(demo) { mutableStateOf<Telemetry?>(null) }
-    var problem by remember(demo) { mutableStateOf<String?>(null) }
+    var reading by remember(demo, host) { mutableStateOf<Telemetry?>(null) }
+    var problem by remember(demo, host) { mutableStateOf<String?>(null) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
 
-    LaunchedEffect(demo, lifecycle, source) {
+    LaunchedEffect(demo, lifecycle, source, host) {
         if (!demo) lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             reading = null
             problem = null
             while (true) {
                 try {
-                    reading = withContext(Dispatchers.IO) { source.read() }
+                    reading = withContext(Dispatchers.IO) { source.read(host) }
                     problem = null
                 } catch (_: IOException) {
                     reading = null
-                    problem = "Disconnected · Join TH-Module Wi-Fi"
+                    problem = "Disconnected · Check module IP and Wi-Fi"
                 } catch (_: JSONException) {
                     reading = null
                     problem = "Unexpected sensor data"
@@ -115,6 +158,12 @@ private fun Monitor(source: ModuleSource) {
                     onCheckedChange = { demo = it },
                     modifier = Modifier.semantics { contentDescription = "Demo mode" },
                 )
+            }
+            TextButton(onClick = {
+                draft = host
+                editingAddress = true
+            }) {
+                Text("Module IP: $host · Edit", color = Muted)
             }
             ReadingCard("TEMPERATURE", if (demo) 25.37 else current?.temperature, "°C",
                 Color(0xFF914D00), Color(0xFFFFE9D5))
