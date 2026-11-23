@@ -27,10 +27,10 @@ internal data class Telemetry(
 }
 
 internal class ModuleSource(private val connectivity: ConnectivityManager) {
-    private val endpoint = URL("http://192.168.4.1/data")
 
     @Suppress("DEPRECATION")
-    fun read(): Telemetry {
+    fun read(host: String = "192.168.4.1"): Telemetry {
+        val endpoint = URL("http://$host/data")
         val wifi = connectivity.allNetworks.firstOrNull {
             connectivity.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
         } ?: throw IOException("Wi-Fi unavailable")
