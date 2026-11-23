@@ -123,7 +123,7 @@ private fun Monitor(source: ModuleSource, preferences: SharedPreferences) {
     val status = when {
         demo -> "Demo · Simulated readings"
         problem != null -> problem.orEmpty()
-        sample?.temperature == null && sample?.humidity == null -> "Waiting for first reading"
+        sample?.temperature == null && sample?.humidity == null && sample?.pressure == null -> "Waiting for first reading"
         sample?.stale == true -> "Reading is stale"
         sample?.ageSeconds != null -> "Connected · Updated ${sample.ageSeconds} s ago"
         else -> "Connected"
@@ -131,7 +131,8 @@ private fun Monitor(source: ModuleSource, preferences: SharedPreferences) {
     val statusColor = when {
         demo -> Muted
         problem != null -> Color(0xFFC9362B)
-        sample == null || sample.stale -> Color(0xFF914D00)
+        sample == null || sample.stale ||
+            (sample.temperature == null && sample.humidity == null && sample.pressure == null) -> Color(0xFF914D00)
         else -> Color(0xFF2E8B57)
     }
     val current = sample?.takeUnless { it.stale || problem != null }
@@ -146,7 +147,7 @@ private fun Monitor(source: ModuleSource, preferences: SharedPreferences) {
                 Spacer(Modifier.width(10.dp))
                 Column {
                     Text("Smart Factory", fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                    Text("Temperature & Humidity", color = Muted, fontSize = 13.sp)
+                    Text("Temperature · Humidity · Pressure", color = Muted, fontSize = 13.sp)
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -169,7 +170,9 @@ private fun Monitor(source: ModuleSource, preferences: SharedPreferences) {
                 Color(0xFF914D00), Color(0xFFFFE9D5))
             ReadingCard("RELATIVE HUMIDITY", if (demo) 45.12 else current?.humidity, "%RH",
                 Color(0xFF00658B), Color(0xFFDDF3FF),
-                unavailable = !demo && current?.temperature != null && current?.humidity == null)
+                unavailable = !demo && current != null && current.humidity == null)
+            ReadingCard("PRESSURE", if (demo) 1.00 else current?.pressure, "",
+                Color(0xFF67508A), Color(0xFFEDE5F5))
         }
     }
 }
