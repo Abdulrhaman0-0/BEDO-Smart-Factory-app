@@ -12,6 +12,7 @@ internal data class Telemetry(
     val humidity: Double?,
     val stale: Boolean,
     val ageSeconds: Long?,
+    val pressure: Double? = null,
 ) {
     companion object {
         fun decode(body: String): Telemetry {
@@ -21,6 +22,7 @@ internal data class Telemetry(
                 json.optDouble("hum").takeIf { it.isFinite() && it > 0.0 },
                 json.getBoolean("stale"),
                 json.optLong("age_s", -1).takeIf { it >= 0 },
+                json.optDouble("press").takeIf { it.isFinite() },
             )
         }
     }
@@ -29,7 +31,7 @@ internal data class Telemetry(
 internal class ModuleSource(private val connectivity: ConnectivityManager) {
 
     @Suppress("DEPRECATION")
-    fun read(host: String = "192.168.4.1"): Telemetry {
+    fun read(host: String = "192.168.250.50"): Telemetry {
         val endpoint = URL("http://$host/data")
         val wifi = connectivity.allNetworks.firstOrNull {
             connectivity.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
